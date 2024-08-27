@@ -7,12 +7,16 @@ import java.util.ArrayList;
 
 public class ProdutosDAO {
 
+    private Connection getConnection() throws SQLException {
+        return DriverManager.getConnection("jdbc:mysql://localhost/uc11?user=root&password=qwerqwer");
+    }
+
     public void cadastrarProduto(ProdutosDTO produto) throws Exception {
         Connection conn = null;
         PreparedStatement stmt = null;
 
         try {
-            conn = DriverManager.getConnection("jdbc:mysql://localhost/uc11?user=root&password=qwerqwer");
+            conn = getConnection();
             String sql = "INSERT INTO produtos (nome, valor, status) VALUES (?, ?, ?)";
             stmt = conn.prepareStatement(sql);
             stmt.setString(1, produto.getNome());
@@ -35,7 +39,7 @@ public class ProdutosDAO {
         ProdutosDTO produto = null;
 
         try {
-            conn = DriverManager.getConnection("jdbc:mysql://localhost/uc11?user=root&password=qwerqwer");
+            conn = getConnection();
             String sql = "SELECT * FROM produtos WHERE nome = ?";
             stmt = conn.prepareStatement(sql);
             stmt.setString(1, nome);
@@ -66,7 +70,7 @@ public class ProdutosDAO {
         ArrayList<ProdutosDTO> lista = new ArrayList<>();
 
         try {
-            conn = DriverManager.getConnection("jdbc:mysql://localhost/uc11?user=root&password=qwerqwer");
+            conn = getConnection();
             String sql = "SELECT * FROM produtos";
             stmt = conn.prepareStatement(sql);
             rs = stmt.executeQuery();
@@ -92,18 +96,29 @@ public class ProdutosDAO {
 
     public void venderProduto(int id) throws Exception {
         Connection conn = null;
-        PreparedStatement stmt = null;
+        PreparedStatement pstmInsert = null;
+        PreparedStatement pstmDelete = null;
 
         try {
-            conn = DriverManager.getConnection("jdbc:mysql://localhost/uc11?user=root&password=qwerqwer");
-            String sql = "UPDATE produtos SET status = 'Vendido' WHERE id = ?";
-            stmt = conn.prepareStatement(sql);
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
+            conn = getConnection();
+            
+            // Mover o produto para a tabela produtos_vendidos
+            String sqlInsert = "INSERT INTO produtos_vendidos (id, nome, valor) " +
+                               "SELECT id, nome, valor FROM produtos WHERE id = ?";
+            pstmInsert = conn.prepareStatement(sqlInsert);
+            pstmInsert.setInt(1, id);
+            pstmInsert.executeUpdate();
+            
+            // Remover o produto da tabela produtos
+            String sqlDelete = "DELETE FROM produtos WHERE id = ?";
+            pstmDelete = conn.prepareStatement(sqlDelete);
+            pstmDelete.setInt(1, id);
+            pstmDelete.executeUpdate();
         } catch (SQLException e) {
             throw new Exception("Erro ao vender produto: " + e.getMessage());
         } finally {
-            if (stmt != null) stmt.close();
+            if (pstmInsert != null) pstmInsert.close();
+            if (pstmDelete != null) pstmDelete.close();
             if (conn != null) conn.close();
         }
     }
